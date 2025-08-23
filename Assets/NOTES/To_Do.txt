@@ -1,0 +1,135 @@
+# Booter And BigARM - Master To-Do List
+
+## **Phase 1 – Core 3D Conversion**
+1. **Camera Upgrade**
+   - Remove `PixelPerfectCamera` dependency.
+   - Implement 3D isometric/third-person camera rig with smooth follow.
+   - Add zoom in/out and rotation (mouse + gamepad right stick).
+   - Configurable camera offset for isometric angle.
+   - Collision handling so camera avoids clipping.
+
+2. **PlayerController Migration to 3D**
+   - Switch movement from `Vector2` to `Vector3`.
+   - Replace 2D collision logic with CharacterController or capsule collider.
+   - Tune acceleration/deceleration for 3D movement.
+   - Bind analog stick for movement and keyboard fallback.
+
+3. **Gamepad Input Integration**
+   - Map right stick to camera rotation.
+   - Adjust deadzones and sensitivity.
+   - Ensure smooth speed scaling for player movement.
+
+4. **BigARMController 3D Upgrade**
+   - Replace 2D follow logic with full `Vector3` pathing.
+   - Implement NavMeshAgent or steering-based obstacle avoidance.
+   - Maintain configurable stop distance.
+
+5. **3D Collision Zones**
+   - Add trigger volumes for interaction points (resources, hunting areas).
+   - Configure Unity Physics layer collision matrix.
+
+---
+
+## **Phase 2 – Procedural World Foundation**
+6. **Chunk Streaming Prototype**
+   - Implement async mesh-based chunk loading/unloading.
+   - Activate/deactivate chunks based on player position.
+   - Use placeholder meshes for early testing.
+
+7. **Biome Setup**
+   - Create 2–3 base biomes (forest, plains, desert).
+   - Assign resource spawn rules per biome.
+
+---
+
+## **Phase 3 – Hunting & Combat MVP**
+8. **Creature AI Prototype**
+   - Add simple wander/patrol behavior.
+   - Implement chase/flee states.
+
+9. **Tracking Mechanic**
+   - Generate footprints or environmental clues.
+   - Add decay timers for tracks.
+
+10. **Basic Loot System**
+    - Implement loot tables.
+    - Connect drops to ResourceManager.
+
+---
+
+## **Phase 4 – Core Gameplay Enhancements**
+11. **Control Handoff System**
+    - Implement `IControllable` interface.
+    - Create `ControlRouter` to swap player control between Booter and BigARM.
+
+12. **Save/Load System v1**
+    - JSON save of player, BigARM, inventory, and world seed.
+
+13. **Debug & Tools**
+    - Debug HUD (FPS, biome, chunk ID, time-of-day, states).
+    - Cheat panel for teleport, spawn creatures, toggle weather.
+
+14. **ScriptableObject Configs**
+    - Player movement settings.
+    - Camera settings.
+    - BigARM behavior.
+    - Biome definitions.
+    - Creature stats.
+    - Loot tables.
+
+---
+
+## **Phase 5 – Polish & Performance**
+15. **URP Optimization**
+    - Medium shadows, 2 cascades, MSAA off.
+    - Enable GPU instancing for props/foliage.
+    - Static batching for world elements.
+
+16. **Pooling & Addressables**
+    - Pool footprints, projectiles, props.
+    - Load biome assets via Addressables.
+
+17. **LOD System**
+    - Impostor billboards for distant creatures/props.
+    - Simple LOD for terrain chunks.
+
+---
+
+## **Phase 6 – Hunting System Expansion**
+18. **Senses System**
+    - Implement sight, hearing, smell ranges.
+    - Stealth system with noise & visibility scores.
+
+19. **Pack AI & Boss Encounters**
+    - Group morale/flee thresholds.
+    - Multi-phase bosses with special attacks.
+
+20. **Spawn Rule Matrix**
+    - Spawn conditions based on biome × time-of-day × weather.
+
+---
+
+## **Phase 7 – UX & Accessibility**
+21. **Rebinding UI**
+    - In-game input remapping.
+    - Presets for KBM/Gamepad.
+
+22. **Accessibility Options**
+    - Toggle camera shake.
+    - Invert look axes.
+    - Adjustable zoom/FOV.
+    - Scalable UI text.
+
+---
+
+## Suggested Work Order
+1. Camera + Player 3D migration.
+2. Gamepad input polish.
+3. BigARM 3D conversion.
+4. Chunk streaming + biome setup.
+5. Hunting MVP (AI, tracking, loot).
+6. Control handoff + save/load.
+7. Debug tools + config SOs.
+8. Optimization & pooling.
+9. Hunting expansion (AI senses, bosses, spawn rules).
+10. UX polish & accessibility.

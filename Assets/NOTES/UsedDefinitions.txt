@@ -1,0 +1,63 @@
+--- Namespaces Used ---
+- BooterAndBigARM.Gameplay
+- BooterAndBigARM.Camera
+- BooterAndBigARM.World
+- BooterAndBigARM.World.Decor
+- BooterAndBigARM.GameCore.Player
+- (Global namespace for InventoryManager, WorldPickup, PlayerHarvest, HarvestableNode, DropTable, ItemDefinition, BigARMController, MassiveCharacterController, PlayerController, RockDecorator, WorldConfig)
+
+--- Classes and Interfaces ---
+- BigARMController (BooterAndBigARM.Gameplay)
+- CameraRigController (BooterAndBigARM.Camera)
+- CameraTargetController (BooterAndBigARM.Camera)
+- Chunk (BooterAndBigARM.World)
+- ChunkData (BooterAndBigARM.World)
+- EntityData (BooterAndBigARM.World)
+- ChunkManager (Global)
+- IChunkDecorator (BooterAndBigARM.World.Decor) [interface]
+- MassiveCharacterController (Global)
+- PlayerController (BooterAndBigARM.GameCore.Player)
+- RockDecorator (BooterAndBigARM.World.Decor)
+- WorldConfig (BooterAndBigARM.World)
+- InventoryManager (Global, MonoBehaviour singleton)
+- WorldPickup (Global, MonoBehaviour)
+- PlayerHarvest (Global, MonoBehaviour)
+- HarvestableNode (Global, MonoBehaviour)
+- DropTable (Global, ScriptableObject)
+- ItemDefinition (Global, ScriptableObject)
+- ItemCategory (Global, enum)
+
+--- Enums ---
+- ItemCategory: Resource (can be extended for other categories)
+
+--- ScriptableObjects ---
+- DropTable: Defines drop entries with item, quantity range, and drop chance
+- ItemDefinition: Defines item properties like id, displayName, category, maxStack, icon
+- WorldConfig: Contains nested structs for scale, streaming, generation, saving, physics, rendering settings
+
+--- Key Public Methods ---
+- InventoryManager: GatherResource, GetResourceAmount, ConsumeResource
+- WorldPickup: SetItem
+- PlayerHarvest: OnHarvest (input callback)
+- HarvestableNode: ApplyHit, Deplete, SpawnPickups, RespawnCoroutine
+- Chunk: Initialize, GenerateVisual
+- ChunkManager: Update, SpawnChunk, HardClamp
+- RockDecorator: Decorate
+- PlayerController: Update (handles input and movement)
+
+--- Design Patterns ---
+- Singleton pattern used in InventoryManager for centralized resource management
+- Decorator pattern via IChunkDecorator interface for chunk decoration
+
+--- Lists and Data Structures ---
+- Dictionary<string, int> resourceInventory in InventoryManager
+- List<Chunk> loaded chunks in ChunkManager
+- List<Vector2Int> scratch and toRemove in ChunkManager
+- List<DropTable.Entry> entries in DropTable
+- List<EntityData> entities in ChunkData
+- List<Vector2> placed positions in RockDecorator
+
+--- Assembly Definitions ---
+- None found in Assets/Scripts directory
+
+This enhanced summary provides a detailed overview of the game's code architecture, key components, and data structures.

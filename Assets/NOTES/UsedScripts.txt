@@ -1,0 +1,861 @@
+--- BigARMController.cs ---
+using UnityEngine;
+
+namespace BooterAndBigARM.Gameplay
+{
+    [RequireComponent(typeof(CharacterController))]
+    public class BigARMController : MonoBehaviour
+    {
+        [Header("Follow Target")]
+        public Transform target; // set to Booter at runtime
+
+        [Header("Movement")]
+        [Min(0f)] public float maxSpeed = 2f;
+        [Min(0f)] public float acceleration = 12f;
+        [Min(0f)] public float deceleration = 18f;
+        [Min(0f)] public float stopDistance = 8f;
+        [Tooltip("When within this many meters, start proportional braking to avoid overshoot.")]
+        public float slowDownRadius = 12f;
+
+        [Header("Body")]
+        public float rotateSpeed = 2f;
+
+        [Header("Grounding")]
+        [Tooltip("Lock Y to this value since terrain is flat for now.")]
+        public float groundY = 0f;
+
+        private CharacterController _cc;
+        private Vector3 _vel;
+
+        void Awake() => _cc = GetComponent<CharacterController>();
+
+        void Update()
+        {
+            // keep mech on the flat plane
+            var p = transform.position;
+            if (Mathf.Abs(p.y - groundY) > 0.0001f)
+            {
+                p.y = groundY;
+                transform.position = p;
+            }
+
+            if (!target)
+            {
+                // no target? passive brake
+                _vel = Vector3.MoveTowards(_vel, Vector3.zero, deceleration * Time.deltaTime);
+                if (_vel.sqrMagnitude > 1e-5f) _cc.Move(_vel * Time.deltaTime);
+                return;
+            }
+
+            Vector3 to = target.position - transform.position;
+            to.y = 0f;
+            float dist = to.magnitude;
+
+            // desired speed with proportional falloff near target
+            float desiredSpeed = 0f;
+            if (dist > stopDistance)
+            {
+                if (dist < slowDownRadius)
+                {
+                    // ramp down as we approach (prevents orbiting/jitter)
+                    float t = Mathf.InverseLerp(stopDistance, slowDownRadius, dist);
+                    desiredSpeed = Mathf.Lerp(0f, maxSpeed, t);
+                }
+                else desiredSpeed = maxSpeed;
+            }
+
+            Vector3 desiredVel = (dist > 0.001f) ? to.normalized * desiredSpeed : Vector3.zero;
+
+            // accel/brake toward desired
+            float rate = (desiredVel.sqrMagnitude > _vel.sqrMagnitude) ? acceleration : deceleration;
+            _vel = Vector3.MoveTowards(_vel, desiredVel, rate * Time.deltaTime);
+
+            // move without rotation (locked rotation)
+            if (_vel.sqrMagnitude > 1e-6f)
+            {
+                _cc.Move(_vel * Time.deltaTime);
+
+                // Rotation disabled to keep original orientation
+                // if (dist >= stopDistance)
+                // {
+                //     Quaternion want = Quaternion.LookRotation(_vel.normalized, Vector3.up);
+                //     transform.rotation = Quaternion.Slerp(transform.rotation, want, rotateSpeed * Time.deltaTime);
+                // }
+            }
+        }
+
+        public void SetTarget(Transform t) => target = t;
+    }
+}
+
+--- CameraRigController.cs ---
+using UnityEngine;
+
+namespace BooterAndBigARM.Camera
+{
+    public class CameraRigController : MonoBehaviour
+    {
+        [Header("Target Settings")]
+        [Tooltip("The transform the camera rig should follow (e.g., CameraTarget).")]
+        public Transform target;
+
+        [Header("Follow Settings")]
+        [Tooltip("Offset from the target in local space.")]
+        [SerializeField] private Vector3 followOffset = new Vector3(0f, 5f, -10f);
+        [Tooltip("Rotation offset from the target's rotation.")]
+        [SerializeField] private Vector3 followRotationEuler = new Vector3(10f, 0f, 0f);
+        [Tooltip("Smooth time for position interpolation.")]
+        [SerializeField] private float positionSmoothTime = 0.15f;
+        [Tooltip("Smooth time for rotation interpolation.")]
+        [SerializeField] private float rotationSmoothTime = 0.15f;
+
+        [Header("Zoom Settings")]
+        [Tooltip("Speed of zooming in/out.")]
+        [SerializeField] private float zoomSpeed = 10f;
+        [Tooltip("Minimum zoom distance.")]
+        [SerializeField] private float minZoomDistance = 2f;
+        [Tooltip("Maximum zoom distance.")]
+        [SerializeField] private float maxZoomDistance = 20f;
+
+        private Vector3 currentVelocity = Vector3.zero;
+        private float currentZoomDistance;
+        private Quaternion followRotation;
+
+        private void Start()
+        {
+            if (target == null)
+            {
+                Debug.LogWarning("CameraRigController: Target is not assigned.");
+                enabled = false;
+                return;
+            }
+
+            currentZoomDistance = followOffset.magnitude;
+            followRotation = Quaternion.Euler(followRotationEuler);
+
+            Vector3 desiredPosition = target.position + target.rotation * followOffset.normalized * currentZoomDistance;
+            transform.position = desiredPosition;
+            transform.rotation = target.rotation * followRotation;
+        }
+
+        private void LateUpdate()
+        {
+            if (target == null) return;
+
+            FollowTargetSmooth();
+            ZoomCamera();
+        }
+
+        private void FollowTargetSmooth()
+        {
+            Vector3 desiredPosition = target.position + target.rotation * followOffset.normalized * currentZoomDistance;
+            transform.position = Vector3.SmoothDamp(transform.position, desiredPosition, ref currentVelocity, positionSmoothTime);
+
+            Quaternion desiredRotation = target.rotation * followRotation;
+            transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, rotationSmoothTime * Time.deltaTime);
+        }
+
+        private void ZoomCamera()
+        {
+            float scroll = UnityEngine.InputSystem.Mouse.current.scroll.ReadValue().y;
+            if (Mathf.Abs(scroll) > 0.01f)
+            {
+                currentZoomDistance = Mathf.Clamp(currentZoomDistance - scroll * zoomSpeed * Time.deltaTime, minZoomDistance, maxZoomDistance);
+            }
+        }
+    }
+}
+
+--- CameraTargetController.cs ---
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace BooterAndBigARM.Camera
+{
+    public class CameraTargetController : MonoBehaviour
+    {
+        [Header("Player Settings")]
+        [Tooltip("The player transform to which this CameraTarget is parented.")]
+        public Transform playerTransform;
+
+        [Header("Pan Settings")]
+        public float lookSpeed = 10f;
+        public float returnSpeed = 5f;
+        [SerializeField] private float maxPanDistance = 5f;
+
+        [Header("Input")]
+        [SerializeField] private InputActionReference rightStickAction;
+
+        private Vector3 velocity = Vector3.zero;
+        private Vector2 rightStickInput = Vector2.zero;
+
+        void Start()
+        {
+            if (rightStickAction != null)
+            {
+                rightStickAction.action.Enable();
+            }
+            if (playerTransform != null)
+            {
+                transform.position = playerTransform.position;
+            }
+        }
+
+        void Update()
+        {
+            if (rightStickAction != null)
+            {
+                rightStickInput = rightStickAction.action.ReadValue<Vector2>();
+            }
+
+            Vector3 playerPos = playerTransform.position;
+            Vector3 currentPos = transform.position;
+
+            float clampedLookSpeed = Mathf.Max(0.01f, lookSpeed);
+            float clampedReturnSpeed = Mathf.Max(0.01f, returnSpeed);
+
+            float deadZone = 0.1f;
+
+            if (rightStickInput.magnitude > deadZone)
+            {
+                Vector3 panInput = new Vector3(rightStickInput.x, 0f, rightStickInput.y).normalized;
+                float panMagnitude = Mathf.Clamp01(rightStickInput.magnitude);
+
+                Quaternion rotationAdjustment = Quaternion.Euler(0f, 45f, 0f);
+                Vector3 rotatedPanInput = rotationAdjustment * panInput;
+
+                Vector3 panOffset = rotatedPanInput * panMagnitude * maxPanDistance;
+
+                Vector3 targetPos = playerPos + panOffset;
+
+                float lerpFactor = clampedLookSpeed * Time.deltaTime;
+                transform.position = Vector3.Lerp(currentPos, targetPos, lerpFactor);
+            }
+            else
+            {
+                float lerpFactor = clampedReturnSpeed * Time.deltaTime;
+                transform.position = Vector3.Lerp(currentPos, playerPos, lerpFactor);
+            }
+        }
+    }
+}
+
+--- Chunk.cs ---
+using UnityEngine;
+
+namespace BooterAndBigARM.World
+{
+    public class Chunk : MonoBehaviour
+    {
+        public Vector2Int Coord { get; private set; }
+        public ChunkData Data { get; private set; }
+
+        private MeshFilter meshFilter;
+        private MeshRenderer meshRenderer;
+
+        public void Initialize(Vector2Int coord, ChunkData data)
+        {
+            Coord = coord;
+            Data = data;
+            name = $"Chunk_{coord.x}_{coord.y}";
+
+            transform.position = new Vector3(coord.x * data.size, 0, coord.y * data.size);
+
+            meshFilter = GetComponent<MeshFilter>();
+            meshRenderer = GetComponent<MeshRenderer>();
+            if (meshFilter == null) meshFilter = gameObject.AddComponent<MeshFilter>();
+            if (meshRenderer == null) meshRenderer = gameObject.AddComponent<MeshRenderer>();
+
+            GenerateVisual();
+        }
+
+        private void GenerateVisual()
+        {
+            Mesh mesh = new Mesh();
+
+            int size = Data.size;
+            float tileSize = 1f;
+
+            Vector3[] vertices = new Vector3[(size + 1) * (size + 1)];
+            int[] triangles = new int[size * size * 6];
+            Vector2[] uv = new Vector2[vertices.Length];
+
+            int v = 0;
+            for (int z = 0; z <= size; z++)
+            {
+                for (int x = 0; x <= size; x++)
+                {
+                    int clampedX = Mathf.Min(x, size - 1);
+                    int clampedZ = Mathf.Min(z, size - 1);
+                    float height = Data.tileHeights[clampedX, clampedZ];
+                    vertices[v] = new Vector3(x * tileSize, height, z * tileSize);
+                    uv[v] = new Vector2((float)x / size, (float)z / size);
+                    v++;
+                }
+            }
+
+            int t = 0;
+            int vert = 0;
+            for (int z = 0; z < size; z++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    triangles[t++] = vert;
+                    triangles[t++] = vert + size + 1;
+                    triangles[t++] = vert + 1;
+
+                    triangles[t++] = vert + 1;
+                    triangles[t++] = vert + size + 1;
+                    triangles[t++] = vert + size + 2;
+
+                    vert++;
+                }
+                vert++;
+            }
+
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.uv = uv;
+            mesh.RecalculateNormals();
+
+            meshFilter.mesh = mesh;
+        }
+    }
+}
+
+--- ChunkData.cs ---
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+namespace BooterAndBigARM.World
+{
+    [Serializable]
+    public class ChunkData
+    {
+        public Vector2Int chunkCoord;
+        public int size;
+
+        public int[,] tileHeights;
+        public List<EntityData> entities = new();
+
+        public ChunkData(Vector2Int coord, int size)
+        {
+            chunkCoord = coord;
+            this.size = size;
+            tileHeights = new int[size, size];
+        }
+    }
+
+    [Serializable]
+    public class EntityData
+    {
+        public string prefabId;
+        public Vector3 position;
+        public Quaternion rotation;
+    }
+}
+
+--- ChunkManager.cs ---
+using System.Collections.Generic;
+using UnityEngine;
+using BooterAndBigARM.World;
+using BooterAndBigARM.World.Decor;
+
+public class ChunkManager : MonoBehaviour
+{
+    [Header("Refs")]
+    public Transform player;
+    public GameObject chunkPrefab;
+    public WorldConfig config;
+
+    [Header("Debug")]
+    [SerializeField] bool showHUD = true;
+
+    private readonly Dictionary<Vector2Int, Chunk> _loaded = new Dictionary<Vector2Int, Chunk>();
+    private readonly List<Vector2Int> _scratch = new List<Vector2Int>();
+    private readonly List<Vector2Int> _toRemove = new List<Vector2Int>();
+
+    private int ChunkSize => config ? config.scale.chunkSize : 16;
+    private float TileSize => config ? config.scale.tileSize : 1f;
+    private float ChunkWorld => ChunkSize * TileSize;
+    private int ViewRadius => Mathf.Max(1, config ? config.streaming.viewRadius : 1);
+
+    private void Update()
+    {
+        if (!player || !chunkPrefab || !config)
+            return;
+
+        int pcx = Mathf.FloorToInt(player.position.x / ChunkWorld);
+        int pcz = Mathf.FloorToInt(player.position.z / ChunkWorld);
+        var center = new Vector2Int(pcx, pcz);
+
+        _scratch.Clear();
+        for (int dz = -ViewRadius; dz <= ViewRadius; dz++)
+        for (int dx = -ViewRadius; dx <= ViewRadius; dx++)
+            _scratch.Add(new Vector2Int(pcx + dx, pcz + dz));
+
+        _toRemove.Clear();
+        foreach (var kv in _loaded)
+        {
+            var c = kv.Key;
+            int dx = Mathf.Abs(c.x - pcx);
+            int dz = Mathf.Abs(c.y - pcz);
+            if (dx > ViewRadius || dz > ViewRadius)
+                _toRemove.Add(c);
+        }
+        foreach (var coord in _toRemove)
+        {
+            Destroy(_loaded[coord].gameObject);
+            _loaded.Remove(coord);
+        }
+
+        _scratch.Sort((a, b) =>
+        {
+            var da = (a - center).sqrMagnitude;
+            var db = (b - center).sqrMagnitude;
+            return da.CompareTo(db);
+        });
+
+        foreach (var coord in _scratch)
+        {
+            if (_loaded.ContainsKey(coord)) continue;
+            SpawnChunk(coord);
+        }
+
+        HardClamp(center);
+    }
+
+    void HardClamp(Vector2Int center)
+    {
+        var toRemove = new List<Vector2Int>();
+        foreach (var kv in _loaded)
+        {
+            var c = kv.Key;
+            int dx = Mathf.Abs(c.x - center.x);
+            int dz = Mathf.Abs(c.y - center.y);
+            if (dx > ViewRadius || dz > ViewRadius)
+                toRemove.Add(c);
+        }
+        foreach (var coord in toRemove)
+        {
+            Destroy(_loaded[coord].gameObject);
+            _loaded.Remove(coord);
+        }
+    }
+
+    private void SpawnChunk(Vector2Int coord)
+    {
+        if (!chunkPrefab) return;
+
+        var go = Instantiate(chunkPrefab, Vector3.zero, Quaternion.identity, transform);
+
+        var chunk = go.GetComponent<Chunk>();
+        if (!chunk)
+        {
+            Destroy(go);
+            return;
+        }
+
+        var mr = go.GetComponent<MeshRenderer>();
+        if (mr && config.rendering.terrainMaterial)
+            mr.sharedMaterial = config.rendering.terrainMaterial;
+
+        var chunkData = new ChunkData(coord, ChunkSize);
+        for (int x = 0; x < chunkData.size; x++)
+            for (int z = 0; z < chunkData.size; z++)
+                chunkData.tileHeights[x, z] = 0;
+
+        chunk.Initialize(coord, chunkData);
+
+        var decorators = GetComponents(typeof(MonoBehaviour));
+        foreach (var deco in decorators)
+        {
+            if (deco is IChunkDecorator decorator)
+            {
+                decorator.Decorate(chunk);
+            }
+        }
+
+        _loaded[coord] = chunk;
+    }
+}
+
+--- IChunkDecorator.cs ---
+using BooterAndBigARM.World;
+
+namespace BooterAndBigARM.World.Decor
+{
+    public interface IChunkDecorator
+    {
+        void Decorate(Chunk chunk);
+    }
+}
+
+--- MassiveCharacterController.cs ---
+using UnityEngine;
+
+[RequireComponent(typeof(CharacterController))]
+public class MassiveCharacterController : MonoBehaviour
+{
+    public float walkSpeed = 6f;
+    public float runSpeed = 12f;
+    public float jumpHeight = 1.5f;
+    public float gravity = -9.81f;
+    public float acceleration = 10f;
+    public float deceleration = 15f;
+    public float rotationSpeed = 10f;
+
+    private CharacterController controller;
+    private Vector3 velocity;
+    private bool isGrounded;
+    private float currentSpeed;
+
+    void Start()
+    {
+        controller = GetComponent<CharacterController>();
+        currentSpeed = 0f;
+    }
+
+    void Update()
+    {
+        GroundCheck();
+
+        Vector3 input = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical"));
+        Vector3 moveDirection = input.normalized;
+
+        float targetSpeed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : walkSpeed;
+        if (moveDirection.magnitude > 0)
+        {
+            currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, acceleration * Time.deltaTime);
+        }
+        else
+        {
+            currentSpeed = Mathf.MoveTowards(currentSpeed, 0, deceleration * Time.deltaTime);
+        }
+
+        Vector3 move = moveDirection * currentSpeed;
+
+        if (moveDirection.magnitude > 0.1f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
+        }
+
+        controller.Move(move * Time.deltaTime);
+
+        if (isGrounded && velocity.y < 0)
+        {
+            velocity.y = -2f;
+        }
+
+        if (Input.GetButtonDown("Jump") && isGrounded)
+        {
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+        }
+
+        velocity.y += gravity * Time.deltaTime;
+        controller.Move(velocity * Time.deltaTime);
+    }
+
+    void GroundCheck()
+    {
+        isGrounded = controller.isGrounded;
+    }
+}
+
+--- PlayerController.cs ---
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+namespace BooterAndBigARM.GameCore.Player
+{
+    [RequireComponent(typeof(CharacterController))]
+    public class PlayerController : MonoBehaviour
+    {
+        [Header("Input Actions")]
+        [SerializeField] private InputActionReference moveActionRef;
+        [SerializeField] private InputActionReference runActionRef;
+
+        [Header("Movement Settings")]
+        [SerializeField] private float maxSpeed = 5f;
+        [SerializeField] private float runSpeed = 10f;
+        [SerializeField] private float acceleration = 20f;
+        [SerializeField] private float deceleration = 10f;
+
+        private CharacterController controller;
+        private Vector2 inputDir;
+        private Vector3 velocity;
+        private bool isRunning;
+
+        private static readonly Quaternion isoRotation = Quaternion.Euler(0, 45f, 0);
+
+        private void Awake()
+        {
+            controller = GetComponent<CharacterController>();
+        }
+
+        private void OnEnable()
+        {
+            moveActionRef.action.Enable();
+            runActionRef.action.Enable();
+        }
+
+        private void OnDisable()
+        {
+            moveActionRef.action.Disable();
+            runActionRef.action.Disable();
+        }
+
+        private void Update()
+        {
+            inputDir = moveActionRef.action.ReadValue<Vector2>();
+            isRunning = runActionRef.action.IsPressed();
+
+            Vector3 rawInput = new Vector3(inputDir.x, 0f, inputDir.y);
+            Vector3 rotatedInput = isoRotation * rawInput;
+
+            float targetSpeed = isRunning ? runSpeed : maxSpeed;
+            Vector3 targetVelocity = rotatedInput.normalized * targetSpeed;
+
+            float rate = (targetVelocity.magnitude > velocity.magnitude) ? acceleration : deceleration;
+            velocity = Vector3.MoveTowards(velocity, targetVelocity, rate * Time.deltaTime);
+
+            controller.Move(velocity * Time.deltaTime);
+        }
+    }
+}
+
+--- RockDecorator.cs ---
+using System.Collections.Generic;
+using UnityEngine;
+using BooterAndBigARM.World;
+
+namespace BooterAndBigARM.World.Decor
+{
+    public class RockDecorator : MonoBehaviour, IChunkDecorator
+    {
+        [Header("References")]
+        public WorldConfig config;
+        public GameObject rockPrefab;
+        public GameObject rockPrefab2;
+
+        [Header("Rules")]
+        [Min(0)] public int rocksPerChunk = 20;
+        [Min(0f)] public float minSpacing = 2f;
+        public float yOffset = 0f;
+
+        [Header("Uniform Settings")]
+        public Vector2 uniformScaleRange = new Vector2(0.8f, 1.4f);
+        public Vector2 uniformRotationRange = new Vector2(0f, 360f);
+
+        [Header("Non-Uniform Settings")]
+        public bool useNonUniformScale = false;
+        public Vector2 scaleXRange = new Vector2(0.8f, 1.4f);
+        public Vector2 scaleYRange = new Vector2(0.8f, 1.4f);
+        public Vector2 scaleZRange = new Vector2(0.8f, 1.4f);
+
+        public bool useNonUniformRotation = false;
+        public Vector2 randomYRotationRange = new Vector2(0f, 360f);
+        public Vector2 randomXRotationRange = new Vector2(0f, 0f);
+        public Vector2 randomZRotationRange = new Vector2(0f, 0f);
+
+        public void Decorate(Chunk chunk)
+        {
+            if (!config || !rockPrefab || chunk == null || chunk.Data == null)
+                return;
+
+            Vector3 origin = chunk.transform.position;
+            int size = chunk.Data.size;
+            float tileSize = 1f;
+            float worldSize = size * tileSize;
+
+            int seed = config.generation.worldSeed
+                       ^ (chunk.Coord.x * 73856093)
+                       ^ (chunk.Coord.y * 19349663);
+            var rng = new System.Random(seed == 0 ? 1 : seed);
+
+            var placed = new List<Vector2>(rocksPerChunk);
+
+            for (int i = 0; i < rocksPerChunk; i++)
+            {
+                for (int tries = 0; tries < 8; tries++)
+                {
+                    float x = (float)rng.NextDouble() * worldSize;
+                    float z = (float)rng.NextDouble() * worldSize;
+                    var p = new Vector2(x, z);
+
+                    bool ok = true;
+                    for (int k = 0; k < placed.Count; k++)
+                    {
+                        if (Vector2.Distance(p, placed[k]) < minSpacing) { ok = false; break; }
+                    }
+                    if (!ok) continue;
+
+                    placed.Add(p);
+
+                    Vector3 posWS = origin + new Vector3(p.x, 0f, p.y) + Vector3.up * yOffset;
+
+                    float randomYRotation;
+                    float randomXRotation;
+                    float randomZRotation;
+
+                    if (!useNonUniformRotation)
+                    {
+                        float uniformRot = Mathf.Lerp(uniformRotationRange.x, uniformRotationRange.y, (float)rng.NextDouble());
+                        randomXRotation = uniformRot;
+                        randomYRotation = uniformRot;
+                        randomZRotation = uniformRot;
+                    }
+                    else
+                    {
+                        randomYRotation = Mathf.Lerp(randomYRotationRange.x, randomYRotationRange.y, (float)rng.NextDouble());
+                        randomXRotation = Mathf.Lerp(randomXRotationRange.x, randomXRotationRange.y, (float)rng.NextDouble());
+                        randomZRotation = Mathf.Lerp(randomZRotationRange.x, randomZRotationRange.y, (float)rng.NextDouble());
+                    }
+                    Quaternion randomRotation = Quaternion.Euler(randomXRotation, randomYRotation, randomZRotation);
+
+                    GameObject prefabToUse = rockPrefab;
+                    if (rockPrefab2 != null && rng.NextDouble() < 0.5)
+                    {
+                        prefabToUse = rockPrefab2;
+                    }
+
+                    var go = Instantiate(prefabToUse, posWS, randomRotation, chunk.transform);
+
+                    float s = Mathf.Lerp(uniformScaleRange.x, uniformScaleRange.y, (float)rng.NextDouble());
+
+                    if (useNonUniformScale)
+                    {
+                        float sx = Mathf.Lerp(scaleXRange.x, scaleXRange.y, (float)rng.NextDouble());
+                        float sy = Mathf.Lerp(scaleYRange.x, scaleYRange.y, (float)rng.NextDouble());
+                        float sz = Mathf.Lerp(scaleZRange.x, scaleZRange.y, (float)rng.NextDouble());
+                        go.transform.localScale = new Vector3(sx, sy, sz);
+                    }
+                    else
+                    {
+                        go.transform.localScale = Vector3.one * s;
+                    }
+
+                    var mr = go.GetComponentInChildren<MeshRenderer>();
+                    if (mr && config.rendering.gpuInstancingForProps)
+                        mr.sharedMaterial.enableInstancing = true;
+
+                    break;
+                }
+            }
+        }
+    }
+}
+
+--- WorldConfig.cs ---
+using UnityEngine;
+
+namespace BooterAndBigARM.World
+{
+    [CreateAssetMenu(fileName = "WorldConfig", menuName = "BABA/World Config")]
+    public class WorldConfig : ScriptableObject
+    {
+        [System.Serializable]
+        public struct ScaleSettings
+        {
+            [Min(2)] public int chunkSize;
+            [Min(0.1f)] public float tileSize;
+            public int VerticesPerSide => chunkSize + 1;
+            public float ChunkWorldSize => chunkSize * tileSize;
+        }
+
+        [System.Serializable]
+        public struct StreamingSettings
+        {
+            [Min(1)] public int viewRadius;
+            [Min(0)] public int colliderRings;
+            [Min(0)] public int propRings;
+            public bool usePooling;
+            [Min(8)] public int chunkPoolCapacity;
+        }
+
+        [System.Serializable]
+        public struct GenerationSettings
+        {
+            public int worldSeed;
+            [Range(0.001f, 1f)] public float elevationFreq;
+            [Range(0f, 10f)] public float elevationScale;
+            [Range(0.001f, 1f)] public float biomeFreq;
+            public ScriptableObject biomeConfig;
+        }
+
+        [System.Serializable]
+        public struct SaveSettings
+        {
+            public bool saveDeltasOnly;
+            [Min(4)] public int regionSize;
+            public string saveFolder;
+            public bool compress;
+            [Min(0f)] public float autosaveInterval;
+        }
+
+        [System.Serializable]
+        public struct PhysicsSettings
+        {
+            public bool addMeshColliderInInnerRing;
+            public bool recalcNormalsOnHeightChange;
+        }
+
+        [System.Serializable]
+        public struct RenderingSettings
+        {
+            public Material terrainMaterial;
+            public bool srpBatcherExpected;
+            public bool gpuInstancingForProps;
+        }
+
+        [Header("Scale")]
+        public ScaleSettings scale = new() { chunkSize = 16, tileSize = 1f };
+
+        [Header("Streaming")]
+        public StreamingSettings streaming = new()
+        {
+            viewRadius = 3,
+            colliderRings = 1,
+            propRings = 2,
+            usePooling = true,
+            chunkPoolCapacity = 128
+        };
+
+        [Header("Generation")]
+        public GenerationSettings generation = new()
+        {
+            worldSeed = 12345,
+            elevationFreq = 0.06f,
+            elevationScale = 0.3f,
+            biomeFreq = 0.12f,
+            biomeConfig = null
+        };
+
+        [Header("Saving")]
+        public SaveSettings saving = new()
+        {
+            saveDeltasOnly = true,
+            regionSize = 16,
+            saveFolder = "WorldSaves",
+            compress = true,
+            autosaveInterval = 60f
+        };
+
+        [Header("Physics")]
+        public PhysicsSettings physics = new()
+        {
+            addMeshColliderInInnerRing = true,
+            recalcNormalsOnHeightChange = false
+        };
+
+        [Header("Rendering")]
+        public RenderingSettings rendering = new()
+        {
+            terrainMaterial = null,
+            srpBatcherExpected = true,
+            gpuInstancingForProps = true
+        };
+    }
+}

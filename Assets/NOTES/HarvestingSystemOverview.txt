@@ -1,0 +1,33 @@
+Harvesting System Overview
+
+This document explains the setup and wiring of the harvesting system in the Unity project, including input handling, resource pickup, and resource management.
+
+1. Input Action Setup
+- A "Harvest" action was added to the PlayerInput.inputactions asset.
+- This action is bound to the gamepad east button ("<Gamepad>/buttonEast").
+- The PlayerInput component on the player GameObject uses this input actions asset.
+
+2. Detecting Harvest Input
+- The PlayerHarvestController script listens for the "Harvest" input action.
+- When the harvest button is pressed, it triggers the TryHarvest() method.
+- TryHarvest() checks for nearby WorldPickup objects within a specified range.
+
+3. WorldPickup Interaction
+- WorldPickup objects represent collectible resources in the world.
+- When harvested, they call ResourceManager.Instance.AddResource() to add the resource.
+- The WorldPickup object is then destroyed to simulate collection.
+
+4. ResourceManager
+- ResourceManager is a singleton MonoBehaviour that tracks gathered resources.
+- It maintains a dictionary mapping resource types to quantities.
+- Provides methods to add resources, query amounts, and consume resources.
+- It persists across scenes using DontDestroyOnLoad.
+
+5. Testing the Setup
+- Attach PlayerInput and PlayerHarvestController to the player.
+- Place WorldPickup objects in the scene with appropriate resourceType and amount.
+- Add a ResourceManager GameObject to the scene.
+- Enter Play mode and press the harvest button near a WorldPickup.
+- Verify resource collection via console logs or UI.
+
+This setup provides a modular and extensible foundation for resource harvesting in the game.

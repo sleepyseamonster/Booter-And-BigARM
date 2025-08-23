@@ -1,0 +1,43 @@
+ResourceManager Setup Guide
+
+The ResourceManager is a central script that keeps track of all the resources your player gathers during the game. It stores resource types and their quantities, allowing you to add new resources, check how many you have, and consume resources when needed.
+
+Step-by-step guide to add and use the ResourceManager in your Unity scene:
+
+1. Create a new GameObject for ResourceManager:
+   - In the Unity Editor, right-click in the Hierarchy window.
+   - Select Create Empty.
+   - Rename this GameObject to ResourceManager.
+
+2. Attach the ResourceManager script:
+   - With the ResourceManager GameObject selected, click Add Component in the Inspector.
+   - Search for ResourceManager and add it.
+   - This script uses the Singleton pattern, so only one instance will exist and persist across scenes.
+
+3. Ensure ResourceManager persists between scenes:
+   - The script includes DontDestroyOnLoad(gameObject); which means it won’t be destroyed when you load new scenes.
+   - This keeps your resource data consistent throughout the game.
+
+4. Using ResourceManager in your scripts:
+   - Whenever the player collects a resource (e.g., in your WorldPickup or harvesting scripts), call:
+     ResourceManager.Instance.AddResource(resourceType, amount);
+   - To check how many of a resource the player has:
+     int currentAmount = ResourceManager.Instance.GetResourceAmount(resourceType);
+   - To consume resources (like spending or using them):
+     bool success = ResourceManager.Instance.ConsumeResource(resourceType, amount);
+     if (success)
+     {
+         // Resource consumed successfully
+     }
+     else
+     {
+         // Not enough resource
+     }
+
+5. Testing:
+   - Enter Play mode.
+   - Collect some resources using your harvest system.
+   - Check the Console for debug messages confirming resource collection.
+   - Optionally, create UI elements to display resource counts by querying the ResourceManager.
+
+This setup ensures your game has a reliable way to manage resources, making it easier to expand features like crafting, trading, or inventory management later on.

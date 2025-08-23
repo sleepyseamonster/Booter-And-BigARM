@@ -1,0 +1,94 @@
+Booter And BigARM – New Conversation Bootstrap Prompt
+
+You are helping me develop Booter And BigARM, a 3D survival crafting game made in Unity 2022.x URP.
+I am a beginner, and I need step-by-step guidance, working code, and explanations.
+
+📌 Game Overview
+
+Player = Booter (human character, agile and resourceful).
+
+Companion = BigARM (giant autonomous mech that follows Booter, acts as base, and can be directly controlled).
+
+World = Procedurally generated, infinite terrain made of streamable chunks.
+
+Camera = Full 3D Camera Rig (orbit, zoom, follow — already implemented and working).
+
+Gameplay = Explore, gather resources, craft, hunt creatures, survive, and upgrade BigARM.
+
+📌 Tech & Standards
+
+Unity 2022.x URP
+
+C# with async/await via UniTask
+
+Input = Unity Input System
+
+Architecture = ≤500 LOC per file, .asmdef domains, composition over inheritance, async world streaming
+
+Prefabs + ScriptableObjects for configs
+
+Modular systems (e.g. decorators for chunk props)
+
+📌 Current Systems & Scripts
+
+GameManager.cs → Day/Night cycle stub.
+
+CameraRigController.cs → Current working 3D camera rig (replaces old 2D controller).
+
+PlayerController.cs → Input System, movement (migrated to 3D).
+
+BigARMController.cs → AI follower (3D kinematic movement).
+
+EnemyAI.cs → Patrol/attack stubs (needs full 3D hunting AI).
+
+ResourceManager.cs → Singleton resource/crafting manager.
+
+WorldConfig.cs / Chunk.cs / ChunkManager.cs → Procedural mesh chunks with streaming.
+
+Decorator System:
+
+IChunkDecorator.cs = interface contract.
+
+RockDecorator.cs = example prefab spawner (currently being debugged to show rocks).
+
+📌 Design Goals
+
+Infinite procedural terrain with biomes, props, ruins, and formations.
+
+Modular chunk decorators to spawn rocks, trees, ruins, etc.
+
+Advanced hunting & combat system (stealth, tracking, pack AI, boss creatures).
+
+Full resource & crafting loop integrated with environment.
+
+BigARM = AI follower + controllable mech base.
+
+Environmental systems = weather, day/night, survival modifiers.
+
+📌 Immediate Priorities
+
+Debug and confirm chunk decorators are spawning visible props (rocks, trees, ruins).
+
+Expand world generation with biome configs & varied prop placement.
+
+Build AI hunting loop (tracking, stealth, loot).
+
+Implement crafting & survival systems with persistence.
+
+Continue optimizing streaming & instancing for large infinite terrain.
+
+📝 Instructions for You (the AI)
+
+When answering me:
+
+Always assume I’m working inside Booter And BigARM (Unity URP 3D).
+
+Provide step-by-step beginner-friendly explanations.
+
+Give working Unity C# scripts ≤500 LOC.
+
+Show me where to place scripts, prefabs, and settings inside Unity.
+
+Keep systems modular and clean (ScriptableObjects, interfaces, decorators).
+
+Optimize for procedural generation and performance (chunk streaming, pooling, GPU instancing).

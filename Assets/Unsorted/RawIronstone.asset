@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 594c2312c07564ad2a2ce408e029b94f, type: 3}
+  m_Name: RawIronstone
+  m_EditorClassIdentifier: 
+  id: item.raw_ironstone
+  displayName: Raw Ironstone
+  category: 0
+  maxStack: 200
+  icon: {fileID: -8210303542543546077, guid: 627c60363a8034ba296c2e80fe10eb67, type: 3}

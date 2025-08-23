@@ -1,0 +1,22 @@
+Booter And BigARM - Session Context Log
+
+Note: This file contains a summary of the key instructions and steps discussed in this session.
+There is no live session URL, but you can keep this file for reference and reload it into a future chat.
+
+---
+Key points from this session:
+
+- Created Master To-Do List for Booter And BigARM game.
+- Began Phase 1: Camera Upgrade from 2D PixelPerfect to 3D isometric/third-person rig.
+- Step 1: Created CameraRig in Unity and positioned Main Camera as its child.
+- Step 2: Added CameraController3D.cs script to follow Booter and look at him from an offset.
+- Confirmed PixelPerfectCamera component was not present, simplifying migration.
+- Next planned steps: Add zoom controls, rotation controls, and camera collision handling.
+
+For reloading context in future sessions:
+1. Upload this file.
+2. Tell the assistant it's your Booter And BigARM session log.
+3. Continue from the last step noted here.
+
+---
+End of session log.
