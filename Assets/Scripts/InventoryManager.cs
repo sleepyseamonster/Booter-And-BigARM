@@ -42,13 +42,20 @@ public class InventoryManager : MonoBehaviour
 
     public bool ConsumeResource(string resourceId, int amount)
     {
-        if (resourceInventory.TryGetValue(resourceId, out int currentAmount) && currentAmount >= amount)
+        if (resourceInventory.TryGetValue(resourceId, out int currentAmount))
         {
-            resourceInventory[resourceId] -= amount;
-            Debug.Log($"Consumed {amount} of {resourceId}. Remaining: {resourceInventory[resourceId]}");
-            return true;
+            if (currentAmount >= amount)
+            {
+                resourceInventory[resourceId] -= amount;
+                Debug.Log($"Consumed {amount} of {resourceId}. Remaining: {resourceInventory[resourceId]}");
+                return true;
+            }
+
+            Debug.LogWarning($"Not enough {resourceId} to consume. Requested: {amount}, Available: {currentAmount}");
+            return false;
         }
-        Debug.LogWarning($"Not enough {resourceId} to consume. Requested: {amount}, Available: {currentAmount}");
+
+        Debug.LogWarning($"No {resourceId} available to consume. Requested: {amount}, Available: 0");
         return false;
     }
 }
